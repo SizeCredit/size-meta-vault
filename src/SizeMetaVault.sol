@@ -42,6 +42,8 @@ contract SizeMetaVault is BaseVault {
     error CannotDepositToStrategies(uint256 assets, uint256 shares, uint256 remainingAssets);
     error CannotWithdrawFromStrategies(uint256 assets, uint256 shares, uint256 missingAssets);
     error InsufficientAssets(uint256 totalAssets, uint256 deadAssets, uint256 amount);
+    error NULL_ADDRESS();
+    error NULL_AMOUNT();
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR / INITIALIZER
@@ -222,6 +224,9 @@ contract SizeMetaVault is BaseVault {
         if (!strategies.contains(address(strategyTo))) {
             revert InvalidStrategy(address(strategyTo));
         }
+        if (amount == 0) {
+            revert NULL_AMOUNT();
+        }
         if (amount + BaseVault(address(strategyFrom)).deadAssets() > strategyFrom.totalAssets()) {
             revert InsufficientAssets(strategyFrom.totalAssets(), BaseVault(address(strategyFrom)).deadAssets(), amount);
         }
@@ -239,6 +244,9 @@ contract SizeMetaVault is BaseVault {
     /// @notice Internal function to add a strategy
     /// @dev Emits StrategyAdded event if the strategy was successfully added
     function _addStrategy(address strategy) private {
+        if (address(strategy) == address(0)) {
+            revert NULL_ADDRESS();
+        }
         bool added = strategies.add(strategy);
         if (added) {
             emit StrategyAdded(strategy);
@@ -248,6 +256,9 @@ contract SizeMetaVault is BaseVault {
     /// @notice Internal function to remove a strategy
     /// @dev Emits StrategyRemoved event if the strategy was successfully removed
     function _removeStrategy(address strategy) private {
+        if (address(strategy) == address(0)) {
+            revert NULL_ADDRESS();
+        }
         bool removed = strategies.remove(strategy);
         if (removed) {
             emit StrategyRemoved(strategy);
