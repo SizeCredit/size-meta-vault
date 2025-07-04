@@ -1,0 +1,10 @@
+{
+  "name": "size-meta-vault",
+  "description": "A modular, upgradeable vault system built on ERC4626 that enables flexible asset management through multiple investment strategies.",
+  "scripts": {
+    "solhint": "solhint \"src/**/*.sol\"  --max-warnings 0"
+  },
+  "devDependencies": {
+    "solhint": "^4.0.0"
+  }
+}
