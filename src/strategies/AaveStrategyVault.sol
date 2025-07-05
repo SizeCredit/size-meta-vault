@@ -88,6 +88,7 @@ contract AaveStrategyVault is BaseVault, IStrategy {
         onlyAuth(SIZE_VAULT_ROLE)
         nonReentrant
     {
+        // slither-disable-next-line unused-return
         pool.withdraw(asset(), amount, to);
         emit TransferAssets(to, amount);
     }
@@ -187,6 +188,7 @@ contract AaveStrategyVault is BaseVault, IStrategy {
         internal
         override
     {
+        // slither-disable-next-line unused-return
         pool.withdraw(asset(), assets, address(this));
         super._withdraw(caller, receiver, owner, assets, shares);
     }

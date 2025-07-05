@@ -67,6 +67,7 @@ contract ERC4626StrategyVault is BaseVault, IStrategy {
         onlyAuth(SIZE_VAULT_ROLE)
         nonReentrant
     {
+        // slither-disable-next-line unused-return
         vault.withdraw(assets, to, address(this));
         emit TransferAssets(to, assets);
     }
@@ -80,6 +81,7 @@ contract ERC4626StrategyVault is BaseVault, IStrategy {
     function skim() external override notPaused onlyAuth(SIZE_VAULT_ROLE) nonReentrant {
         uint256 assets = IERC20(asset()).balanceOf(address(this));
         IERC20(asset()).forceApprove(address(vault), assets);
+        // slither-disable-next-line unused-return
         vault.deposit(assets, address(this));
         emit Skim();
     }
@@ -124,6 +126,7 @@ contract ERC4626StrategyVault is BaseVault, IStrategy {
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
         super._deposit(caller, receiver, assets, shares);
         IERC20(asset()).forceApprove(address(vault), assets);
+        // slither-disable-next-line unused-return
         vault.deposit(assets, address(this));
     }
 
@@ -133,6 +136,7 @@ contract ERC4626StrategyVault is BaseVault, IStrategy {
         internal
         override
     {
+        // slither-disable-next-line unused-return
         vault.withdraw(assets, address(this), address(this));
         super._withdraw(caller, receiver, owner, assets, shares);
     }
