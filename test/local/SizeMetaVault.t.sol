@@ -38,4 +38,18 @@ contract SizeMetaVaultTest is BaseTest {
         assertEq(cashStrategyVault.totalAssets(), cashAssetsBefore - 5e6);
         assertEq(erc4626StrategyVault.totalAssets(), erc4626AssetsBefore + 5e6);
     }
+
+    function test_SizeMetaVault_setStrategies() public {
+        address[] memory strategies = new address[](3);
+        strategies[0] = makeAddr("strategy1");
+        strategies[1] = makeAddr("strategy2");
+        strategies[2] = makeAddr("strategy3");
+
+        vm.prank(strategist);
+        sizeMetaVault.setStrategies(strategies);
+
+        assertEq(sizeMetaVault.getStrategy(0), strategies[0]);
+        assertEq(sizeMetaVault.getStrategy(1), strategies[1]);
+        assertEq(sizeMetaVault.getStrategy(2), strategies[2]);
+    }
 }
