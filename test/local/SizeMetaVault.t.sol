@@ -17,6 +17,26 @@ contract SizeMetaVaultTest is BaseTest {
         assertEq(sizeMetaVault.decimals(), erc20Asset.decimals());
     }
 
+    function test_SizeMetaVault_rebalanceSlippageValidation() public {
+        uint256 amount = 30e6;
+        uint256 minAmount = 31e6;
+
+        _mint(erc20Asset, address(cashStrategyVault), amount * 2);
+
+        vm.prank(strategist);
+        vm.expectRevert(abi.encodeWithSelector(SizeMetaVault.TransferedAmountLessThanMin.selector, amount, minAmount));
+        sizeMetaVault.rebalance(cashStrategyVault, erc4626StrategyVault, amount, minAmount);
+    }
+
+    function test_SizeMetaVault_rebalanceWithSlippage() public {
+        uint256 amount = 30e6;
+
+        _mint(erc20Asset, address(cashStrategyVault), amount * 2);
+
+        vm.prank(strategist);
+        sizeMetaVault.rebalance(cashStrategyVault, erc4626StrategyVault, amount, amount);
+    }
+
     function test_SizeMetaVault_rebalance() public {
         uint256 cashAssetsBefore = cashStrategyVault.totalAssets();
         uint256 erc4626AssetsBefore = erc4626StrategyVault.totalAssets();
@@ -31,10 +51,10 @@ contract SizeMetaVaultTest is BaseTest {
             )
         );
         vm.prank(strategist);
-        sizeMetaVault.rebalance(cashStrategyVault, erc4626StrategyVault, amount);
+        sizeMetaVault.rebalance(cashStrategyVault, erc4626StrategyVault, amount, 0);
 
         vm.prank(strategist);
-        sizeMetaVault.rebalance(cashStrategyVault, erc4626StrategyVault, 5e6);
+        sizeMetaVault.rebalance(cashStrategyVault, erc4626StrategyVault, 5e6, 0);
         assertEq(cashStrategyVault.totalAssets(), cashAssetsBefore - 5e6);
         assertEq(erc4626StrategyVault.totalAssets(), erc4626AssetsBefore + 5e6);
     }
