@@ -9,6 +9,8 @@ import {BaseVault} from "@src/BaseVault.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IPool} from "@aave/contracts/interfaces/IPool.sol";
 import {IAToken} from "@aave/contracts/interfaces/IAToken.sol";
+import {WadRayMath} from "@aave/contracts/protocol/libraries/math/WadRayMath.sol";
+import {DataTypes} from "@aave/contracts/protocol/libraries/types/DataTypes.sol";
 import {Auth, SIZE_VAULT_ROLE} from "@src/Auth.sol";
 import {IStrategy} from "@src/strategies/IStrategy.sol";
 
@@ -20,6 +22,7 @@ import {IStrategy} from "@src/strategies/IStrategy.sol";
 /// @dev Reference https://github.com/superform-xyz/super-vaults/blob/8bc1d1bd1579f6fb9a047802256ed3a2bf15f602/src/aave-v3/AaveV3ERC4626Reinvest.sol
 contract AaveStrategyVault is BaseVault, IStrategy {
     using SafeERC20 for IERC20;
+    using WadRayMath for uint256;
 
     /*//////////////////////////////////////////////////////////////
                               STORAGE
@@ -127,8 +130,12 @@ contract AaveStrategyVault is BaseVault, IStrategy {
 
         uint8 tokenDecimals = _getDecimals(configData);
         uint256 supplyCap = supplyCapInWholeTokens * 10 ** tokenDecimals;
-        if (aToken.totalSupply() >= supplyCap) return 0;
-        return supplyCap - aToken.totalSupply();
+        DataTypes.ReserveDataLegacy memory reserve = pool.getReserveData(asset());
+        uint256 usedSupply =
+            (aToken.scaledTotalSupply() + uint256(reserve.accruedToTreasury)).rayMul(reserve.liquidityIndex);
+
+        if (usedSupply >= supplyCap) return 0;
+        return supplyCap - usedSupply;
     }
 
     /// @notice Returns the maximum number of shares that can be minted
