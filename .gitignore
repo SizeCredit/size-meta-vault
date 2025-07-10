@@ -25,3 +25,6 @@ slither_results.json
 
 # VSCode
 .vscode
+
+# Npm
+node_modules

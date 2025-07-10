@@ -85,6 +85,7 @@ contract CashStrategyVaultTest is BaseTest {
         cashStrategyVault.redeem(shares, alice, alice);
         assertEq(cashStrategyVault.balanceOf(alice), 0);
         assertLe(erc20Asset.balanceOf(address(cashStrategyVault)), initialBalance);
+
         assertGe(erc20Asset.balanceOf(alice), depositAmount - pullAmount);
     }
 
@@ -140,5 +141,68 @@ contract CashStrategyVaultTest is BaseTest {
         assertGe(cashStrategyVault.totalAssets(), initialTotalAssets + 1);
         assertGe(erc20Asset.balanceOf(address(cashStrategyVault)), initialBalance + 1);
         assertGe(erc20Asset.balanceOf(alice), depositAmount);
+    }
+
+    /// New Tests ///
+
+    // if user redeems shares when the vault has no assets
+    // the user will be allowed to to this
+    // user will burn 100% of shares for zero assets
+    function test_CashStrategyVault_deposit_transferAssets_all_redeem() public {
+        uint256 depositAmount = 100e6;
+        _mint(erc20Asset, alice, depositAmount);
+        _approve(alice, erc20Asset, address(cashStrategyVault), depositAmount);
+
+        vm.prank(alice);
+        cashStrategyVault.deposit(depositAmount, alice);
+        uint256 shares = cashStrategyVault.balanceOf(alice);
+        assertEq(cashStrategyVault.balanceOf(alice), shares);
+
+        uint256 pullAmount = erc20Asset.balanceOf(address(cashStrategyVault));
+        vm.prank(address(sizeMetaVault));
+        cashStrategyVault.transferAssets(bob, pullAmount);
+        assertEq(cashStrategyVault.balanceOf(alice), shares);
+        assertEq(cashStrategyVault.totalAssets(), initialTotalAssets + depositAmount - pullAmount);
+        assertEq(erc20Asset.balanceOf(address(cashStrategyVault)), initialBalance + depositAmount - pullAmount);
+        assertEq(erc20Asset.balanceOf(bob), pullAmount);
+
+        vm.prank(alice);
+        cashStrategyVault.redeem(shares, alice, alice);
+
+        assertEq(cashStrategyVault.balanceOf(alice), 0);
+        assertEq(erc20Asset.balanceOf(address(cashStrategyVault)), 0);
+        assertEq(erc20Asset.balanceOf(alice), 0);
+    }
+
+    // if user try to withdraw instead of redeeming then the vault asset balance
+    // will be taken into consideration and the user shares will no be bruned
+    // for nothing
+    function test_CashStrategyVault_deposit_transferAssets_all_withdraw() public {
+        uint256 depositAmount = 100e6;
+        _mint(erc20Asset, alice, depositAmount);
+        _approve(alice, erc20Asset, address(cashStrategyVault), depositAmount);
+        vm.prank(alice);
+        cashStrategyVault.deposit(depositAmount, alice);
+        uint256 shares = cashStrategyVault.balanceOf(alice);
+        assertEq(cashStrategyVault.balanceOf(alice), shares);
+
+        uint256 pullAmount = erc20Asset.balanceOf(address(cashStrategyVault));
+
+        vm.prank(address(sizeMetaVault));
+        cashStrategyVault.transferAssets(bob, pullAmount);
+        assertEq(cashStrategyVault.balanceOf(alice), shares);
+        assertEq(cashStrategyVault.totalAssets(), initialTotalAssets + depositAmount - pullAmount);
+        assertEq(erc20Asset.balanceOf(address(cashStrategyVault)), initialBalance + depositAmount - pullAmount);
+        assertEq(erc20Asset.balanceOf(bob), pullAmount);
+
+        uint256 previewRedeemAssets = cashStrategyVault.previewRedeem(shares);
+
+        vm.prank(alice);
+        cashStrategyVault.withdraw(previewRedeemAssets, alice, alice);
+
+        // alice did not burn any shares
+        assertEq(cashStrategyVault.balanceOf(alice), shares);
+        assertEq(erc20Asset.balanceOf(address(cashStrategyVault)), 0);
+        assertEq(erc20Asset.balanceOf(alice), 0);
     }
 }

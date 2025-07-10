@@ -12,6 +12,7 @@ import {ERC4626StrategyVault} from "@src/strategies/ERC4626StrategyVault.sol";
 import {CryticCashStrategyVaultMock} from "@test/mocks/CryticCashStrategyVaultMock.t.sol";
 import {CryticAaveStrategyVaultMock} from "@test/mocks/CryticAaveStrategyVaultMock.t.sol";
 import {CryticERC4626StrategyVaultMock} from "@test/mocks/CryticERC4626StrategyVaultMock.t.sol";
+import {USDC} from "@test/mocks/USDC.t.sol";
 import {Setup} from "@test/Setup.t.sol";
 import {PoolMock} from "@test/mocks/PoolMock.t.sol";
 import {AaveStrategyVault} from "@src/strategies/AaveStrategyVault.sol";
@@ -64,6 +65,11 @@ contract BaseTest is Test, Setup {
 
     function _mint(IERC20Metadata _asset, address _to, uint256 _amount) internal {
         deal(address(_asset), _to, _amount);
+    }
+
+    function _burn(IERC20Metadata _asset, address _from, uint256 _amount) internal {
+        vm.prank(USDC(address(_asset)).owner());
+        USDC(address(_asset)).burn(_from, _amount);
     }
 
     function _approve(address _user, IERC20Metadata _asset, address _spender, uint256 _amount) internal {
