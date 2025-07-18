@@ -10,6 +10,7 @@ import {ERC20PermitUpgradeable} from
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MulticallUpgradeable} from "@openzeppelin-upgradeable/contracts/utils/MulticallUpgradeable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Auth} from "@src/Auth.sol";
 import {DEFAULT_ADMIN_ROLE, PAUSER_ROLE, STRATEGIST_ROLE} from "@src/Auth.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -31,6 +32,8 @@ abstract contract BaseVault is
     MulticallUpgradeable,
     UUPSUpgradeable
 {
+    using Math for uint256;
+
     /*//////////////////////////////////////////////////////////////
                               STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -185,5 +188,29 @@ abstract contract BaseVault is
     /// @dev Returns type(uint256).max if no total assets cap is set
     function maxMint(address receiver) public view virtual override(ERC4626Upgradeable, IERC4626) returns (uint256) {
         return totalAssetsCap == type(uint256).max ? type(uint256).max : convertToShares(maxDeposit(receiver));
+    }
+
+    function _convertToShares(uint256 assets, Math.Rounding rounding)
+        internal
+        view
+        virtual
+        override(ERC4626Upgradeable)
+        returns (uint256)
+    {
+        return assets.mulDiv(
+            totalSupply() + 10 ** _decimalsOffset(), totalAssets() + (rounding == Math.Rounding.Floor ? 1 : 0), rounding
+        );
+    }
+
+    function _convertToAssets(uint256 shares, Math.Rounding rounding)
+        internal
+        view
+        virtual
+        override(ERC4626Upgradeable)
+        returns (uint256)
+    {
+        return shares.mulDiv(
+            totalAssets() + (rounding == Math.Rounding.Ceil ? 1 : 0), totalSupply() + 10 ** _decimalsOffset(), rounding
+        );
     }
 }
