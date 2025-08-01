@@ -4,12 +4,12 @@ pragma solidity 0.8.23;
 import {IBaseVault} from "@src/IBaseVault.sol";
 import {BaseTest} from "@test/BaseTest.t.sol";
 import {AaveStrategyVault} from "@src/strategies/AaveStrategyVault.sol";
-import {Auth} from "@src/utils/Auth.sol";
+import {Auth} from "@src/Auth.sol";
 import {ERC4626Upgradeable} from "@openzeppelin-upgradeable/contracts/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {IAToken} from "@aave/contracts/interfaces/IAToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IPool} from "@aave/contracts/interfaces/IPool.sol";
-import {BaseVault} from "@src/BaseVault.sol";
+import {BaseVault} from "@src/utils/BaseVault.sol";
 import {DataTypes} from "@aave/contracts/protocol/libraries/types/DataTypes.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -17,6 +17,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract AaveStrategyVaultTest is BaseTest, Initializable {
     uint256 initialBalance;
     uint256 initialTotalAssets;
+    bool expectRevert = false;
 
     function setUp() public override {
         super.setUp();
@@ -27,7 +28,7 @@ contract AaveStrategyVaultTest is BaseTest, Initializable {
     function test_AaveStrategyVault_initialize_invalid_asset() public {
         vm.store(address(aaveStrategyVault), _initializableStorageSlot(), bytes32(uint256(0)));
         vm.prank(admin);
-        vm.expectRevert(abi.encodeWithSelector(BaseVault.InvalidAsset.selector, address(weth)));
+        vm.expectRevert(abi.encodeWithSelector(AaveStrategyVault.InvalidAsset.selector, address(weth)));
         aaveStrategyVault.initialize(
             auth, IERC20(address(weth)), "VAULT", "VAULT", address(this), FIRST_DEPOSIT_AMOUNT, pool
         );
@@ -262,6 +263,26 @@ contract AaveStrategyVaultTest is BaseTest, Initializable {
         assertEq(aaveStrategyVault.maxRedeem(address(erc20Asset)), 0);
     }
 
+    function test_AaveStrategyVault_maxDeposit_supply_cap_0() public {
+        uint8 decimals = erc20Asset.decimals();
+        uint256 totalAssetsBefore = aaveStrategyVault.totalAssets();
+
+        vm.prank(admin);
+        pool.setConfiguration(
+            address(erc20Asset), DataTypes.ReserveConfigurationMap({data: (1 << 56) | (decimals << 48)})
+        );
+
+        assertEq(aaveStrategyVault.maxDeposit(address(erc20Asset)), type(uint256).max);
+        assertEq(aaveStrategyVault.maxMint(address(erc20Asset)), type(uint256).max);
+
+        uint256 totalAssetsCap = 30e6;
+        vm.prank(admin);
+        aaveStrategyVault.setTotalAssetsCap(totalAssetsCap);
+
+        assertEq(aaveStrategyVault.maxDeposit(address(erc20Asset)), totalAssetsCap - totalAssetsBefore);
+        assertEq(aaveStrategyVault.maxMint(address(erc20Asset)), totalAssetsCap - totalAssetsBefore);
+    }
+
     function test_AaveStrategyVault_maxDeposit_supply_cap() public {
         uint8 decimals = erc20Asset.decimals();
         uint256 supplyCap = 42;
@@ -324,18 +345,29 @@ contract AaveStrategyVaultTest is BaseTest, Initializable {
         assertEq(aaveStrategyVault.maxRedeem(address(sizeMetaVault)), aaveStrategyVault.previewRedeem(30e6));
     }
 
-    function test_AaveStrategyVault_skim() public {
-        _deposit(alice, aaveStrategyVault, 100e6);
-        uint256 aliceBalanceBefore = aaveStrategyVault.balanceOf(alice);
-        uint256 balanceBefore = erc20Asset.balanceOf(address(aToken));
-        uint256 yield = 10e6;
+    function testFuzz_AaveStrategyVault_deposit_assets_shares_0_reverts(uint256 amount, uint256 index1) public {
+        amount = bound(amount, 1, 100e6);
+        index1 = bound(index1, 1e27, 1.3e27);
 
-        _mint(erc20Asset, alice, yield);
+        _mint(erc20Asset, address(aaveStrategyVault), amount * 2);
+        _setLiquidityIndex(erc20Asset, index1);
+
+        _mint(erc20Asset, alice, amount);
+        _approve(alice, erc20Asset, address(aaveStrategyVault), amount);
+
         vm.prank(alice);
-        erc20Asset.transfer(address(aaveStrategyVault), yield);
+        try aaveStrategyVault.deposit(amount, alice) {
+            index1 = bound(index1, 2 * index1, 10 * index1);
+            _setLiquidityIndex(erc20Asset, index1);
 
-        aaveStrategyVault.skim();
-        assertEq(erc20Asset.balanceOf(address(aToken)), balanceBefore + yield);
-        assertGt(aaveStrategyVault.convertToAssets(aaveStrategyVault.balanceOf(alice)), aliceBalanceBefore);
+            vm.prank(alice);
+            aaveStrategyVault.redeem(1, alice, alice);
+        } catch (bytes memory err) {
+            assertEq(bytes4(err), BaseVault.NullAmount.selector);
+        }
+    }
+
+    function test_AaveStrategyVault_deposit_assets_shares_0_reverts_concrete() public {
+        testFuzz_AaveStrategyVault_deposit_assets_shares_0_reverts(1, 1198633698108951810697775384);
     }
 }

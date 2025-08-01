@@ -8,9 +8,9 @@ import {PausableUpgradeable} from "@openzeppelin-upgradeable/contracts/utils/Pau
 import {MulticallUpgradeable} from "@openzeppelin-upgradeable/contracts/utils/MulticallUpgradeable.sol";
 
 bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
+bytes32 constant VAULT_MANAGER_ROLE = keccak256("VAULT_MANAGER_ROLE");
 bytes32 constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
-bytes32 constant SIZE_VAULT_ROLE = keccak256("SIZE_VAULT_ROLE");
-bytes32 constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+bytes32 constant GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
 
 /// @title Auth
 /// @custom:security-contact security@size.credit
@@ -38,8 +38,9 @@ contract Auth is UUPSUpgradeable, AccessControlEnumerableUpgradeable, PausableUp
         __UUPSUpgradeable_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
-        _grantRole(PAUSER_ROLE, admin_);
+        _grantRole(VAULT_MANAGER_ROLE, admin_);
         _grantRole(STRATEGIST_ROLE, admin_);
+        _grantRole(GUARDIAN_ROLE, admin_);
     }
 
     /// @notice Authorizes contract upgrades
@@ -47,14 +48,14 @@ contract Auth is UUPSUpgradeable, AccessControlEnumerableUpgradeable, PausableUp
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /// @notice Pauses the contract
-    /// @dev Only addresses with PAUSER_ROLE can pause the contract
-    function pause() external onlyRole(PAUSER_ROLE) {
+    /// @dev Only addresses with GUARDIAN_ROLE can pause the contract
+    function pause() external onlyRole(GUARDIAN_ROLE) {
         _pause();
     }
 
     /// @notice Unpauses the contract
-    /// @dev Only addresses with PAUSER_ROLE can unpause the contract
-    function unpause() external onlyRole(PAUSER_ROLE) {
+    /// @dev Only addresses with VAULT_MANAGER_ROLE can unpause the contract
+    function unpause() external onlyRole(VAULT_MANAGER_ROLE) {
         _unpause();
     }
 }

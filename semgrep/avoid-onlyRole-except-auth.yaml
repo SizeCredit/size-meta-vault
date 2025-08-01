@@ -1,0 +1,10 @@
+rules:
+  - id: avoid-onlyRole-except-auth
+    pattern: onlyRole
+    message: >
+      Avoid using `onlyRole` modifier. Use the global Auth contract's role management instead.
+    languages: [solidity]
+    severity: ERROR
+    paths:
+      exclude:
+        - "**/Auth.sol" 

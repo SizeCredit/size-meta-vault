@@ -8,7 +8,7 @@ import {CryticERC4626StrategyVaultMock} from "@test/mocks/CryticERC4626StrategyV
 import {ERC4626StrategyVault} from "@src/strategies/ERC4626StrategyVault.sol";
 import {VaultMock} from "@test/mocks/VaultMock.t.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Auth} from "@src/utils/Auth.sol";
+import {Auth} from "@src/Auth.sol";
 import {BaseScript} from "@script/BaseScript.s.sol";
 
 contract CryticERC4626StrategyVaultMockScript is BaseScript {

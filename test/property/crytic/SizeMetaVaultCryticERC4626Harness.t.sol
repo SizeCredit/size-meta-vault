@@ -12,8 +12,8 @@ contract SizeMetaVaultCryticERC4626Harness is CryticERC4626PropertyTests, Setup 
         initialize(address(sizeMetaVault), address(asset), true);
     }
 
-    function rebalance(address strategyFrom, address strategyTo, uint256 amount, uint256 minAmount) public {
+    function rebalance(address strategyFrom, address strategyTo, uint256 amount, uint256 maxSlippagePercent) public {
         hevm.prank(address(this));
-        sizeMetaVault.rebalance(IBaseVault(strategyFrom), IBaseVault(strategyTo), amount, minAmount);
+        sizeMetaVault.rebalance(IBaseVault(strategyFrom), IBaseVault(strategyTo), amount, maxSlippagePercent);
     }
 }

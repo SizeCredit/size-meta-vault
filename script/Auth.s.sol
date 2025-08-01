@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import {Script, console} from "forge-std/Script.sol";
-import {Auth} from "@src/utils/Auth.sol";
+import {Auth} from "@src/Auth.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract AuthScript is Script {

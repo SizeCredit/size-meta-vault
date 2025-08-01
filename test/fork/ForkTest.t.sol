@@ -4,7 +4,7 @@ pragma solidity 0.8.23;
 import {BaseTest} from "@test/BaseTest.t.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {Auth} from "@src/utils/Auth.sol";
+import {Auth} from "@src/Auth.sol";
 
 contract ForkTest is BaseTest {
     IERC20Metadata asset;

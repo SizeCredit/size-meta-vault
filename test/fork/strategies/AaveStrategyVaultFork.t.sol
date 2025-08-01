@@ -11,7 +11,7 @@ import {AaveStrategyVault} from "@src/strategies/AaveStrategyVault.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IPool} from "@aave/contracts/interfaces/IPool.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {BaseVault} from "@src/BaseVault.sol";
+import {BaseVault} from "@src/utils/BaseVault.sol";
 
 contract AaveStrategyVaultForkTest is ForkTest {
     using SafeERC20 for IERC20Metadata;

@@ -12,7 +12,7 @@ This project implements ERC4626 property tests from [A16Z](https://github.com/a1
 
 - OpenZeppelin's implementation with decimals offset ([A Novel Defense Against ERC4626 Inflation Attacks](https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks))
 - First deposit during deployment with dead shares, pioneered by the [Morpho Optimizer](https://github.com/morpho-org/morpho-optimizers-vaults/blob/a74846774afe4f74a75a0470c2984c7d8ea41f35/scripts/aave-v2/eth-mainnet/Deploy.s.sol#L85-L120)
-- Timelock for sensitive operations
+- Timelock for sensitive operations using OpenZeppelin's [TimelockController](https://docs.openzeppelin.com/defender/guide/timelock-roles)
 
 ## Audits
 
@@ -73,18 +73,26 @@ Target integrations:
 
 1. **`CashStrategyVault`**: Simple cash-holding strategy (no yield generation)
 2. **`AaveStrategyVault`**: Aave lending protocol integration for yield generation
-3. **`ERC4626StrategyVault`**: Generic wrapper for other ERC4626 vaults (e.g., Morpho). Only ERC-4626 vaults passing the [integration checklist](https://github.com/aviggiano/security/blob/v0.1.0/audit-checklists/ERC-4626-integration.md) will be considered. If a vault has fees-on-withdrawal in assets, making it not strictly ERC-4626 compliant, the `ERC4626StrategyVault` will also not be strictly ERC-4626 compliant.
+3. **`ERC4626StrategyVault`**: Generic wrapper for other ERC4626 vaults (e.g., Morpho). Only ERC-4626 vaults passing the [integration checklist](https://github.com/aviggiano/security/blob/v0.1.0/audit-checklists/ERC-4626-integration.md) will be considered.
 
 ## Roles and Permissions
 
-* **`DEFAULT_ADMIN_ROLE`**: Admin (governance multisig)
-* **`STRATEGIST_ROLE`**: Rebalance across strategies, configure strategies through a timelock
-* **`PAUSER_ROLE`**: Emergency pause functionality: per vault or whole protocol
+```md
+| Role                | Timelock | Actions                                                     |
+|---------------------|----------|-------------------------------------------------------------|
+| DEFAULT_ADMIN_ROLE  | 7d       | upgrade, grantRole, revokeRole, setPerformanceFeePercent    |
+| VAULT_MANAGER_ROLE  | 1d       | unpause, addStrategy, setTotalAssetsCap                     |
+| STRATEGIST_ROLE     | 0        | rebalance, reorderStrategies                                |
+| GUARDIAN_ROLE       | 0        | cancel any pending proposals, pause, removeStrategy         |
+```
 
 ## Known Limitations
 
-1. When `removeStrategies` is performed, the `SizeMetaVault` attempts to withdraw assets from the exiting strategies and re-deposit them to another strategy. If the deposit fails, the whole operation reverts
+1. When `removeStrategies` is performed, the `SizeMetaVault` attempts to withdraw all assets from the exiting strategy and re-deposit to another strategy. If the withdraw or deposit fails, the whole operation reverts
 2. The performance fee can stop being applied during a significant downturn event, which would cause the PPS to never surpass the high-water mark
+3. Assets donated to the vaults may be lost
+4. The vaults are not compatible with fee-on-transfer assets
+5. The `ERC4626StrategyVault` is not compliant with vaults that take fees in assets on deposits or withdrawals, as they are not strictly ERC-4626 compliant
 
 ### Deployment
 
@@ -96,6 +104,4 @@ forge script script/AaveStrategyVault.s.sol --rpc-url $RPC_URL --gas-limit 30000
 forge script script/ERC4626StrategyVault.s.sol --rpc-url $RPC_URL --gas-limit 30000000 --sender $DEPLOYER_ADDRESS --account $DEPLOYER_ACCOUNT --verify -vvvvv [--slow]
 export STRATEGIES=XXX
 forge script script/SizeMetaVault.s.sol --rpc-url $RPC_URL --gas-limit 30000000 --sender $DEPLOYER_ADDRESS --account $DEPLOYER_ACCOUNT --verify -vvvvv [--slow]
-export SIZE_META_VAULT=XXX
-cast send $AUTH "grantRole(bytes32,address)" $(cast k SIZE_VAULT_ROLE) $SIZE_META_VAULT --rpc-url $RPC_URL --account $DEPLOYER_ACCOUNT -vvvvv
 ```

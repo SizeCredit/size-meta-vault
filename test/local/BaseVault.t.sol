@@ -5,9 +5,9 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {BaseTest} from "@test/BaseTest.t.sol";
-import {BaseVault} from "@src/BaseVault.sol";
+import {BaseVault} from "@src/utils/BaseVault.sol";
 import {BaseVaultMock} from "@test/mocks/BaseVaultMock.t.sol";
-import {PAUSER_ROLE, DEFAULT_ADMIN_ROLE, STRATEGIST_ROLE} from "@src/utils/Auth.sol";
+import {VAULT_MANAGER_ROLE, GUARDIAN_ROLE, DEFAULT_ADMIN_ROLE} from "@src/Auth.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {PausableUpgradeable} from "@openzeppelin-upgradeable/contracts/utils/PausableUpgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin-upgradeable/contracts/token/ERC20/extensions/ERC4626Upgradeable.sol";
@@ -49,7 +49,7 @@ contract BaseVaultTest is BaseTest {
         assertFalse(baseVault.paused());
 
         vm.prank(admin);
-        auth.grantRole(PAUSER_ROLE, admin);
+        auth.grantRole(GUARDIAN_ROLE, admin);
 
         vm.prank(admin);
         baseVault.pause();
@@ -60,14 +60,14 @@ contract BaseVaultTest is BaseTest {
     function test_BaseVault_pause_unauthorized_reverts() public {
         vm.prank(alice);
         vm.expectRevert(
-            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, PAUSER_ROLE)
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, GUARDIAN_ROLE)
         );
         baseVault.pause();
     }
 
     function test_BaseVault_unpause_success() public {
         vm.prank(admin);
-        auth.grantRole(PAUSER_ROLE, admin);
+        auth.grantRole(GUARDIAN_ROLE, admin);
 
         vm.prank(admin);
         baseVault.pause();
@@ -81,14 +81,14 @@ contract BaseVaultTest is BaseTest {
 
     function test_BaseVault_unpause_unauthorized_reverts() public {
         vm.prank(admin);
-        auth.grantRole(PAUSER_ROLE, admin);
+        auth.grantRole(VAULT_MANAGER_ROLE, admin);
 
         vm.prank(admin);
         baseVault.pause();
 
         vm.prank(alice);
         vm.expectRevert(
-            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, PAUSER_ROLE)
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, VAULT_MANAGER_ROLE)
         );
         baseVault.unpause();
     }
@@ -99,17 +99,17 @@ contract BaseVaultTest is BaseTest {
         _approve(alice, erc20Asset, address(baseVault), amount);
 
         vm.prank(admin);
-        auth.grantRole(PAUSER_ROLE, admin);
+        auth.grantRole(GUARDIAN_ROLE, admin);
 
         vm.prank(admin);
         baseVault.pause();
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(PausableUpgradeable.EnforcedPause.selector));
+        vm.expectRevert(abi.encodeWithSelector(ERC4626Upgradeable.ERC4626ExceededMaxDeposit.selector, alice, amount, 0));
         baseVault.deposit(amount, alice);
     }
 
-    function test_BaseVault_deposit_whenAuthPaused_reverts() public {
+    function test_BaseVault_deposit_when_auth_paused_reverts() public {
         uint256 amount = 100e6;
         _mint(erc20Asset, alice, amount);
         _approve(alice, erc20Asset, address(baseVault), amount);
@@ -118,7 +118,7 @@ contract BaseVaultTest is BaseTest {
         auth.pause();
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(PausableUpgradeable.EnforcedPause.selector));
+        vm.expectRevert(abi.encodeWithSelector(ERC4626Upgradeable.ERC4626ExceededMaxDeposit.selector, alice, amount, 0));
         baseVault.deposit(amount, alice);
 
         vm.prank(admin);
@@ -138,7 +138,7 @@ contract BaseVaultTest is BaseTest {
         baseVault.deposit(amount, alice);
 
         vm.prank(admin);
-        auth.grantRole(PAUSER_ROLE, admin);
+        auth.grantRole(GUARDIAN_ROLE, admin);
 
         vm.prank(admin);
         baseVault.pause();
@@ -220,20 +220,20 @@ contract BaseVaultTest is BaseTest {
         uint256 totalAssetsCap = 1000e6;
         vm.prank(alice);
         vm.expectRevert(
-            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, STRATEGIST_ROLE)
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, VAULT_MANAGER_ROLE)
         );
         baseVault.setTotalAssetsCap(totalAssetsCap);
 
         assertEq(baseVault.totalAssetsCap(), type(uint256).max);
 
-        vm.prank(strategist);
+        vm.prank(manager);
         baseVault.setTotalAssetsCap(totalAssetsCap);
         assertEq(baseVault.totalAssetsCap(), totalAssetsCap);
     }
 
     function test_BaseVault_deposit_reverts_when_totalAssetsCap_is_reached() public {
         uint256 totalAssetsCap = 1000e6;
-        vm.prank(strategist);
+        vm.prank(manager);
         baseVault.setTotalAssetsCap(totalAssetsCap);
 
         _mint(erc20Asset, address(baseVault), totalAssetsCap);
@@ -247,5 +247,34 @@ contract BaseVaultTest is BaseTest {
             abi.encodeWithSelector(ERC4626Upgradeable.ERC4626ExceededMaxDeposit.selector, alice, depositAmount, 0)
         );
         baseVault.deposit(depositAmount, alice);
+    }
+
+    function test_BaseVault_paused() public {
+        uint256 amount = 100e6;
+        _deposit(alice, baseVault, amount);
+
+        vm.prank(admin);
+        baseVault.pause();
+
+        assertEq(baseVault.maxDeposit(alice), 0);
+        assertEq(baseVault.maxMint(alice), 0);
+        assertEq(baseVault.maxWithdraw(alice), 0);
+        assertEq(baseVault.maxRedeem(alice), 0);
+
+        vm.prank(admin);
+        baseVault.unpause();
+
+        assertEq(baseVault.maxDeposit(alice), type(uint256).max);
+        assertEq(baseVault.maxMint(alice), type(uint256).max);
+        assertEq(baseVault.maxWithdraw(alice), amount);
+        assertEq(baseVault.maxRedeem(alice), amount);
+
+        vm.prank(admin);
+        auth.pause();
+
+        assertEq(baseVault.maxDeposit(alice), 0);
+        assertEq(baseVault.maxMint(alice), 0);
+        assertEq(baseVault.maxWithdraw(alice), 0);
+        assertEq(baseVault.maxRedeem(alice), 0);
     }
 }

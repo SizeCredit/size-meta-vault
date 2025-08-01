@@ -3,7 +3,8 @@ pragma solidity 0.8.23;
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {BaseTest} from "@test/BaseTest.t.sol";
-import {PerformanceVault} from "@src/PerformanceVault.sol";
+import {BaseVault} from "@src/utils/BaseVault.sol";
+import {PerformanceVault} from "@src/utils/PerformanceVault.sol";
 
 contract PerformanceVaultTest is BaseTest {
     function test_PerformanceVault_initialize() public view {
@@ -22,13 +23,6 @@ contract PerformanceVaultTest is BaseTest {
         );
         sizeMetaVault.setPerformanceFeePercent(0.2e18);
 
-        vm.prank(admin);
-        sizeMetaVault.setPerformanceFeePercent(0.7e19);
-
-        uint256 setPerformanceFeePercentTimelockDuration =
-            sizeMetaVault.getTimelockData(sizeMetaVault.setPerformanceFeePercent.selector).duration;
-        vm.warp(block.timestamp + setPerformanceFeePercentTimelockDuration);
-
         uint256 maxPerformanceFeePercent = sizeMetaVault.MAXIMUM_PERFORMANCE_FEE_PERCENT();
 
         vm.prank(admin);
@@ -42,15 +36,14 @@ contract PerformanceVaultTest is BaseTest {
         vm.prank(admin);
         sizeMetaVault.setPerformanceFeePercent(0.2e18);
 
-        vm.warp(block.timestamp + setPerformanceFeePercentTimelockDuration);
-
-        vm.prank(admin);
-        sizeMetaVault.setPerformanceFeePercent(0.2e18);
-
         assertEq(sizeMetaVault.performanceFeePercent(), 0.2e18);
     }
 
     function test_PerformanceVault_setFeeRecipient() public {
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(BaseVault.NullAddress.selector));
+        sizeMetaVault.setFeeRecipient(address(0));
+
         assertEq(sizeMetaVault.feeRecipient(), admin);
 
         vm.expectRevert(
@@ -70,26 +63,20 @@ contract PerformanceVaultTest is BaseTest {
         vm.prank(admin);
         sizeMetaVault.setPerformanceFeePercent(0.2e18);
 
-        uint256 setPerformanceFeePercentTimelockDuration =
-            sizeMetaVault.getTimelockData(sizeMetaVault.setPerformanceFeePercent.selector).duration;
-        vm.warp(block.timestamp + setPerformanceFeePercentTimelockDuration);
-
-        vm.prank(admin);
-        sizeMetaVault.setPerformanceFeePercent(0.2e18);
-
         _deposit(alice, sizeMetaVault, 100e6);
-
-        vm.prank(strategist);
-        sizeMetaVault.rebalance(cashStrategyVault, aaveStrategyVault, 100e6, 0);
-
-        _mint(erc20Asset, address(cashStrategyVault), 300e6);
-        _deposit(alice, sizeMetaVault, 200e6);
 
         uint256 sharesBefore = sizeMetaVault.balanceOf(admin);
 
-        _withdraw(alice, sizeMetaVault, 50e6);
+        _mint(erc20Asset, address(cashStrategyVault), 300e6);
+        _deposit(alice, sizeMetaVault, 70e6);
 
         uint256 sharesAfter = sizeMetaVault.balanceOf(admin);
+
         assertGt(sharesAfter, sharesBefore);
+
+        _deposit(alice, sizeMetaVault, 40e6);
+
+        uint256 sharesFinal = sizeMetaVault.balanceOf(admin);
+        assertEq(sharesFinal, sharesAfter);
     }
 }

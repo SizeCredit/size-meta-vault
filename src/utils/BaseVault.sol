@@ -10,8 +10,8 @@ import {ERC20PermitUpgradeable} from
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MulticallUpgradeable} from "@openzeppelin-upgradeable/contracts/utils/MulticallUpgradeable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {Auth} from "@src/utils/Auth.sol";
-import {DEFAULT_ADMIN_ROLE, PAUSER_ROLE, STRATEGIST_ROLE} from "@src/utils/Auth.sol";
+import {Auth} from "@src/Auth.sol";
+import {DEFAULT_ADMIN_ROLE, VAULT_MANAGER_ROLE, GUARDIAN_ROLE} from "@src/Auth.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ERC20Upgradeable} from "@openzeppelin-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol";
 import {IBaseVault} from "@src/IBaseVault.sol";
@@ -37,9 +37,8 @@ abstract contract BaseVault is
     //////////////////////////////////////////////////////////////*/
 
     Auth public auth;
-    uint256 public deadAssets;
     uint256 public totalAssetsCap;
-    uint256[47] private __gap;
+    uint256[48] private __gap;
 
     /*//////////////////////////////////////////////////////////////
                               ERRORS
@@ -47,16 +46,14 @@ abstract contract BaseVault is
 
     error NullAddress();
     error NullAmount();
-    error InvalidAsset(address asset);
 
     /*//////////////////////////////////////////////////////////////
                               EVENTS
     //////////////////////////////////////////////////////////////*/
 
     event AuthSet(address indexed auth);
-    event DeadAssetsSet(uint256 indexed deadAssets);
     event TotalAssetsCapSet(uint256 indexed totalAssetsCapBefore, uint256 indexed totalAssetsCapAfter);
-    event VaultStatus(uint256 indexed timestamp, uint256 totalShares, uint256 totalAssets);
+    event VaultStatus(uint256 totalShares, uint256 totalAssets);
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR / INITIALIZER
@@ -95,9 +92,6 @@ abstract contract BaseVault is
         auth = auth_;
         emit AuthSet(address(auth_));
 
-        deadAssets = firstDepositAmount_;
-        emit DeadAssetsSet(firstDepositAmount_);
-
         _setTotalAssetsCap(type(uint256).max);
 
         _firstDeposit(fundingAccount_, firstDepositAmount_);
@@ -119,8 +113,15 @@ abstract contract BaseVault is
     /// @notice Modifier to ensure the contract is not paused
     /// @dev Checks both local pause state and global pause state from Auth
     modifier notPaused() {
-        if (paused() || auth.paused()) revert EnforcedPause();
+        if (_isPaused()) revert EnforcedPause();
         _;
+    }
+
+    /// @notice Modifier to emit the vault status
+    /// @dev Emits the vault status after the function is executed
+    modifier emitVaultStatus() {
+        _;
+        emit VaultStatus(totalSupply(), totalAssets());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -132,21 +133,21 @@ abstract contract BaseVault is
     function _authorizeUpgrade(address newImplementation) internal override onlyAuth(DEFAULT_ADMIN_ROLE) {}
 
     /// @notice Pauses the vault
-    /// @dev Only addresses with PAUSER_ROLE can pause the vault
-    function pause() external onlyAuth(PAUSER_ROLE) {
+    /// @dev Only addresses with GUARDIAN_ROLE can pause the vault
+    function pause() external onlyAuth(GUARDIAN_ROLE) {
         _pause();
     }
 
     /// @notice Unpauses the vault
-    /// @dev Only addresses with PAUSER_ROLE can unpause the vault
-    function unpause() external onlyAuth(PAUSER_ROLE) {
+    /// @dev Only addresses with VAULT_MANAGER_ROLE can unpause the vault
+    function unpause() external onlyAuth(VAULT_MANAGER_ROLE) {
         _unpause();
     }
 
     /// @notice Sets the maximum total assets of the vault
     /// @dev Only callable by the auth contract
     /// @dev Lowering the total assets cap does not affect existing deposited assets
-    function setTotalAssetsCap(uint256 totalAssetsCap_) external onlyAuth(STRATEGIST_ROLE) {
+    function setTotalAssetsCap(uint256 totalAssetsCap_) external onlyAuth(VAULT_MANAGER_ROLE) {
         _setTotalAssetsCap(totalAssetsCap_);
     }
 
@@ -170,6 +171,15 @@ abstract contract BaseVault is
         _deposit(fundingAccount_, receiver, firstDepositAmount_, shares);
     }
 
+    /// @notice Returns true if the vault is paused
+    function _isPaused() private view returns (bool) {
+        return paused() || auth.paused();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              ERC20 OVERRIDES
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice Returns the number of decimals for the vault token
     function decimals()
         public
@@ -185,23 +195,84 @@ abstract contract BaseVault is
                               ERC4626 OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Deposits assets into the vault
+    /// @dev Prevents deposits that would result in 0 shares received
+    function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal virtual override {
+        // slither-disable-next-line incorrect-equality
+        if (assets > 0 && shares == 0) {
+            revert NullAmount();
+        }
+        super._deposit(caller, receiver, assets, shares);
+    }
+
+    /// @notice Withdraws assets from the vault
+    /// @dev Prevents withdrawals that would result in 0 assets taken
+    function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
+        internal
+        virtual
+        override
+    {
+        // slither-disable-next-line incorrect-equality
+        if (shares > 0 && assets == 0) {
+            revert NullAmount();
+        }
+        super._withdraw(caller, receiver, owner, assets, shares);
+    }
+
     /// @notice Internal function called during token transfers
-    /// @dev Ensures transfers only happen when the contract is not paused and that no reentrancy is possible
-    function _update(address from, address to, uint256 value) internal virtual override nonReentrant notPaused {
+    /// @dev This function is overridden to ensure that the vault is not paused
+    function _update(address from, address to, uint256 value) internal virtual override notPaused {
         super._update(from, to, value);
-        emit VaultStatus(block.timestamp, totalSupply(), totalAssets());
     }
 
     /// @notice Returns the maximum amount that can be deposited
-    /// @dev Returns type(uint256).max if no total assets cap is set
-    function maxDeposit(address) public view virtual override(ERC4626Upgradeable, IERC4626) returns (uint256) {
-        return
-            totalAssetsCap == type(uint256).max ? type(uint256).max : Math.saturatingSub(totalAssetsCap, totalAssets());
+    function maxDeposit(address receiver)
+        public
+        view
+        virtual
+        override(ERC4626Upgradeable, IERC4626)
+        returns (uint256)
+    {
+        if (_isPaused()) {
+            return 0;
+        } else if (totalAssetsCap == type(uint256).max) {
+            return super.maxDeposit(receiver);
+        } else {
+            return _maxDeposit();
+        }
     }
 
     /// @notice Returns the maximum amount that can be minted
-    /// @dev Returns type(uint256).max if no total assets cap is set
     function maxMint(address receiver) public view virtual override(ERC4626Upgradeable, IERC4626) returns (uint256) {
-        return totalAssetsCap == type(uint256).max ? type(uint256).max : convertToShares(maxDeposit(receiver));
+        if (_isPaused()) {
+            return 0;
+        } else if (totalAssetsCap == type(uint256).max) {
+            return super.maxMint(receiver);
+        } else {
+            return convertToShares(_maxDeposit());
+        }
+    }
+
+    /// @notice Returns the maximum amount that can be withdrawn
+    function maxWithdraw(address owner) public view virtual override(ERC4626Upgradeable, IERC4626) returns (uint256) {
+        if (_isPaused()) {
+            return 0;
+        } else {
+            return super.maxWithdraw(owner);
+        }
+    }
+
+    /// @notice Returns the maximum amount that can be redeemed
+    function maxRedeem(address owner) public view virtual override(ERC4626Upgradeable, IERC4626) returns (uint256) {
+        if (_isPaused()) {
+            return 0;
+        } else {
+            return super.maxRedeem(owner);
+        }
+    }
+
+    /// @notice Returns the maximum amount that can be deposited
+    function _maxDeposit() private view returns (uint256) {
+        return Math.saturatingSub(totalAssetsCap, totalAssets());
     }
 }

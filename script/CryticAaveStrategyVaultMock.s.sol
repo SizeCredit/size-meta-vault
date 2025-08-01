@@ -7,7 +7,7 @@ import {CryticAaveStrategyVaultMock} from "@test/mocks/CryticAaveStrategyVaultMo
 import {AaveStrategyVault} from "@src/strategies/AaveStrategyVault.sol";
 import {PoolMock} from "@test/mocks/PoolMock.t.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Auth} from "@src/utils/Auth.sol";
+import {Auth} from "@src/Auth.sol";
 import {BaseScript} from "@script/BaseScript.s.sol";
 
 contract CryticAaveStrategyVaultMockScript is BaseScript {

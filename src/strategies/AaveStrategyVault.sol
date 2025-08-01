@@ -4,13 +4,14 @@ pragma solidity 0.8.23;
 import {ERC4626Upgradeable} from "@openzeppelin-upgradeable/contracts/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {BaseVault} from "@src/BaseVault.sol";
+import {BaseVault} from "@src/utils/BaseVault.sol";
+import {NonReentrantVault} from "@src/utils/NonReentrantVault.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IPool} from "@aave/contracts/interfaces/IPool.sol";
 import {IAToken} from "@aave/contracts/interfaces/IAToken.sol";
 import {WadRayMath} from "@aave/contracts/protocol/libraries/math/WadRayMath.sol";
 import {DataTypes} from "@aave/contracts/protocol/libraries/types/DataTypes.sol";
-import {Auth} from "@src/utils/Auth.sol";
+import {Auth} from "@src/Auth.sol";
 import {ReserveConfiguration} from "@aave/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -18,9 +19,9 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 /// @custom:security-contact security@size.credit
 /// @author Size (https://size.credit/)
 /// @notice A strategy that invests assets in Aave v3 lending pools
-/// @dev Extends BaseVault for Aave v3 integration within the Size Meta Vault system
+/// @dev Extends NonReentrantVault for Aave v3 integration within the Size Meta Vault system
 /// @dev Reference https://github.com/superform-xyz/super-vaults/blob/8bc1d1bd1579f6fb9a047802256ed3a2bf15f602/src/aave-v3/AaveV3ERC4626Reinvest.sol
-contract AaveStrategyVault is BaseVault {
+contract AaveStrategyVault is NonReentrantVault {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
     using ReserveConfiguration for DataTypes.ReserveConfigurationMap;
@@ -31,6 +32,12 @@ contract AaveStrategyVault is BaseVault {
 
     IPool public pool;
     IAToken public aToken;
+
+    /*//////////////////////////////////////////////////////////////
+                              ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    error InvalidAsset(address asset);
 
     /*//////////////////////////////////////////////////////////////
                               EVENTS
@@ -70,19 +77,6 @@ contract AaveStrategyVault is BaseVault {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              EXTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Invests any idle assets sitting in this contract
-    /// @dev Supplies any assets held by this contract to the Aave pool
-    function skim() external override nonReentrant notPaused {
-        uint256 assets = IERC20(asset()).balanceOf(address(this));
-        IERC20(asset()).forceApprove(address(pool), assets);
-        pool.supply(asset(), assets, address(this), 0);
-        emit Skim();
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               ERC4626 OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
@@ -100,7 +94,7 @@ contract AaveStrategyVault is BaseVault {
         // handle supply cap
         uint256 supplyCapInWholeTokens = config.getSupplyCap();
         if (supplyCapInWholeTokens == 0) {
-            return type(uint256).max;
+            return super.maxDeposit(receiver);
         }
 
         uint256 tokenDecimals = config.getDecimals();
@@ -121,7 +115,7 @@ contract AaveStrategyVault is BaseVault {
 
     /// @notice Returns the maximum amount that can be withdrawn by an owner
     /// @dev Limited by both owner's balance and Aave pool liquidity
-    function maxWithdraw(address owner) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
+    function maxWithdraw(address owner) public view override(BaseVault) returns (uint256) {
         // check if asset is paused
         DataTypes.ReserveConfigurationMap memory config = pool.getReserveData(asset()).configuration;
         if (!(config.getActive() && !config.getPaused())) {
@@ -130,13 +124,13 @@ contract AaveStrategyVault is BaseVault {
 
         uint256 cash = IERC20(asset()).balanceOf(address(aToken));
         uint256 assetsBalance = convertToAssets(balanceOf(owner));
-        return cash < assetsBalance ? cash : assetsBalance;
+        return Math.min(cash < assetsBalance ? cash : assetsBalance, super.maxWithdraw(owner));
     }
 
     /// @notice Returns the maximum number of shares that can be redeemed
     /// @dev Updates Superform implementation to allow the SizeMetaVault to redeem all
     /// @dev Limited by both owner's balance and Aave pool liquidity
-    function maxRedeem(address owner) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
+    function maxRedeem(address owner) public view override(BaseVault) returns (uint256) {
         // check if asset is paused
         DataTypes.ReserveConfigurationMap memory config = pool.getReserveData(asset()).configuration;
         if (!(config.getActive() && !config.getPaused())) {
@@ -146,7 +140,7 @@ contract AaveStrategyVault is BaseVault {
         uint256 cash = IERC20(asset()).balanceOf(address(aToken));
         uint256 cashInShares = convertToShares(cash);
         uint256 shareBalance = balanceOf(owner);
-        return cashInShares < shareBalance ? cashInShares : shareBalance;
+        return Math.min(cashInShares < shareBalance ? cashInShares : shareBalance, super.maxRedeem(owner));
     }
 
     /// @notice Returns the total assets managed by this strategy

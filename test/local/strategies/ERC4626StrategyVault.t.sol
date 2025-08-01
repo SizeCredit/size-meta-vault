@@ -8,9 +8,9 @@ import {BaseTest} from "@test/BaseTest.t.sol";
 import {VaultMock} from "@test/mocks/VaultMock.t.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {Auth, SIZE_VAULT_ROLE} from "@src/utils/Auth.sol";
+import {Auth} from "@src/Auth.sol";
 import {ERC4626StrategyVault} from "@src/strategies/ERC4626StrategyVault.sol";
-import {BaseVault} from "@src/BaseVault.sol";
+import {BaseVault} from "@src/utils/BaseVault.sol";
 import {ERC4626Mock} from "@openzeppelin/contracts/mocks/token/ERC4626Mock.sol";
 
 contract ERC4626StrategyVaultTest is BaseTest, Initializable {
@@ -79,7 +79,7 @@ contract ERC4626StrategyVaultTest is BaseTest, Initializable {
 
         uint256 pullAmount = 30e6;
         vm.prank(strategist);
-        sizeMetaVault.rebalance(erc4626StrategyVault, cashStrategyVault, pullAmount, 0);
+        sizeMetaVault.rebalance(erc4626StrategyVault, cashStrategyVault, pullAmount, 0.01e18);
         assertEq(erc4626StrategyVault.balanceOf(alice), shares);
         assertEq(
             erc20Asset.balanceOf(address(erc4626Vault)), balanceBeforeERC4626StrategyVault + depositAmount - pullAmount
@@ -111,7 +111,7 @@ contract ERC4626StrategyVaultTest is BaseTest, Initializable {
 
         uint256 pullAmount = 30e6;
         vm.prank(strategist);
-        sizeMetaVault.rebalance(erc4626StrategyVault, cashStrategyVault, pullAmount, 0);
+        sizeMetaVault.rebalance(erc4626StrategyVault, cashStrategyVault, pullAmount, 0.01e18);
         assertEq(erc4626StrategyVault.balanceOf(alice), shares);
         assertEq(
             erc20Asset.balanceOf(address(erc4626Vault)), balanceBeforeERC4626StrategyVault + depositAmount - pullAmount
@@ -166,11 +166,12 @@ contract ERC4626StrategyVaultTest is BaseTest, Initializable {
         assertEq(erc4626StrategyVault.balanceOf(alice), shares);
         assertEq(erc4626StrategyVault.balanceOf(bob), 0);
 
-        uint256 previewRedeemAssets = erc4626StrategyVault.previewRedeem(shares);
+        uint256 maxRedeem = erc4626StrategyVault.maxRedeem(alice);
+        uint256 previewRedeemAssets = erc4626StrategyVault.previewRedeem(maxRedeem);
 
         vm.prank(alice);
-        erc4626StrategyVault.redeem(shares, alice, alice);
-        assertEq(erc4626StrategyVault.balanceOf(alice), 0);
+        erc4626StrategyVault.redeem(maxRedeem, alice, alice);
+        assertEq(erc4626StrategyVault.balanceOf(alice), 1);
         assertEq(erc20Asset.balanceOf(alice), previewRedeemAssets);
     }
 
@@ -371,14 +372,8 @@ contract ERC4626StrategyVaultTest is BaseTest, Initializable {
         uint256 burnAmount = (depositAmount + depositAmount2) / 2;
         _burn(erc20Asset, address(erc4626StrategyVault.vault()), burnAmount);
 
-        assertEq(erc4626StrategyVault.balanceOf(alice), erc4626StrategyVault.maxRedeem(alice));
-        assertEq(erc4626StrategyVault.balanceOf(bob), erc4626StrategyVault.maxRedeem(bob));
-
-        assertEq(
-            erc4626StrategyVault.maxRedeem(bob) + erc4626StrategyVault.maxRedeem(alice)
-                + erc4626StrategyVault.maxRedeem(address(erc4626StrategyVault)),
-            erc4626StrategyVault.vault().maxRedeem(address(erc4626StrategyVault))
-        );
+        assertEq(erc4626StrategyVault.balanceOf(alice) - 1, erc4626StrategyVault.maxRedeem(alice));
+        assertEq(erc4626StrategyVault.balanceOf(bob) - 2, erc4626StrategyVault.maxRedeem(bob));
     }
 
     function test_ERC4626StrategyVault_totalAssetsCap_maxDeposit_maxMint() public {
@@ -422,18 +417,45 @@ contract ERC4626StrategyVaultTest is BaseTest, Initializable {
         assertEq(erc4626StrategyVault.maxRedeem(address(sizeMetaVault)), erc4626StrategyVault.previewRedeem(30e6));
     }
 
-    function test_ERC4626StrategyVault_skim() public {
-        _deposit(alice, erc4626StrategyVault, 100e6);
-        uint256 aliceBalanceBefore = erc4626StrategyVault.balanceOf(alice);
-        uint256 balanceBefore = erc20Asset.balanceOf(address(erc4626Vault));
-        uint256 yield = 10e6;
+    function test_ERC4626StrategyVault_max_same_units() public {
+        uint256 assets = 100e6;
+        _deposit(alice, erc4626StrategyVault, assets);
+        _mint(erc20Asset, address(erc4626StrategyVault.vault()), 50e6);
+        deal(address(erc4626StrategyVault.vault()), address(erc4626StrategyVault), 10e6);
 
-        _mint(erc20Asset, alice, yield);
+        uint256 shares = erc4626StrategyVault.balanceOf(address(alice));
+
+        assertEq(erc4626StrategyVault.maxRedeem(address(alice)), shares - 2);
+    }
+
+    function testFuzz_ERC4626StrategyVault_deposit_assets_shares_0_reverts(uint256 amount) public {
+        amount = bound(amount, 1, 100e6);
+
+        _mint(erc20Asset, address(erc4626StrategyVault.vault()), amount * 2);
+
+        _mint(erc20Asset, alice, amount);
+        _approve(alice, erc20Asset, address(erc4626StrategyVault), amount);
+
         vm.prank(alice);
-        erc20Asset.transfer(address(erc4626Vault), yield);
+        try erc4626StrategyVault.deposit(amount, alice) {
+            _mint(erc20Asset, address(erc4626StrategyVault.vault()), amount / 10);
 
-        erc4626StrategyVault.skim();
-        assertEq(erc20Asset.balanceOf(address(erc4626Vault)), balanceBefore + yield);
-        assertGt(erc4626StrategyVault.convertToAssets(erc4626StrategyVault.balanceOf(alice)), aliceBalanceBefore);
+            uint256 maxRedeem = erc4626StrategyVault.maxRedeem(alice);
+            vm.assume(maxRedeem >= 1);
+
+            vm.prank(alice);
+            try erc4626StrategyVault.redeem(1, alice, alice) {}
+            catch (bytes memory err) {
+                assertEq(bytes4(err), BaseVault.NullAmount.selector);
+            }
+        } catch (bytes memory err) {
+            assertEq(bytes4(err), BaseVault.NullAmount.selector);
+        }
+    }
+
+    function test_ERC4626StrategyVault_deposit_assets_shares_0_reverts_concrete_01() public {
+        testFuzz_ERC4626StrategyVault_deposit_assets_shares_0_reverts(
+            1108790381926929861836164074425007624709311183104891332381950016717928201
+        );
     }
 }

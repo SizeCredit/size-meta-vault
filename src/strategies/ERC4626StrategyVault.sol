@@ -3,18 +3,19 @@ pragma solidity 0.8.23;
 
 import {ERC4626Upgradeable} from "@openzeppelin-upgradeable/contracts/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {BaseVault} from "@src/BaseVault.sol";
+import {BaseVault} from "@src/utils/BaseVault.sol";
+import {NonReentrantVault} from "@src/utils/NonReentrantVault.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Auth} from "@src/utils/Auth.sol";
+import {Auth} from "@src/Auth.sol";
 
 /// @title ERC4626StrategyVault
 /// @custom:security-contact security@size.credit
 /// @author Size (https://size.credit/)
 /// @notice A strategy that invests assets in an external ERC4626-compliant vault
 /// @dev Wraps an external ERC4626 vault to provide strategy functionality for the Size Meta Vault
-contract ERC4626StrategyVault is BaseVault {
+contract ERC4626StrategyVault is NonReentrantVault {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -54,44 +55,37 @@ contract ERC4626StrategyVault is BaseVault {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              EXTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Invests any idle assets sitting in this contract into the external vault
-    function skim() external override nonReentrant notPaused {
-        uint256 assets = IERC20(asset()).balanceOf(address(this));
-        IERC20(asset()).forceApprove(address(vault), assets);
-        // slither-disable-next-line unused-return
-        vault.deposit(assets, address(this));
-        emit Skim();
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               ERC4626 OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Returns the maximum amount that can be deposited
-    /// @dev Limited by the external vault's maxDeposit function
     function maxDeposit(address receiver) public view override(BaseVault) returns (uint256) {
         return Math.min(vault.maxDeposit(address(this)), super.maxDeposit(receiver));
     }
 
     /// @notice Returns the maximum number of shares that can be minted
-    /// @dev Limited by the external vault's maxMint function
     function maxMint(address receiver) public view override(BaseVault) returns (uint256) {
-        return Math.min(vault.maxMint(address(this)), super.maxMint(receiver));
+        uint256 maxDepositReceiver = maxDeposit(receiver);
+        // slither-disable-next-line incorrect-equality
+        uint256 maxDepositInShares = maxDepositReceiver == type(uint256).max
+            ? type(uint256).max
+            : _convertToShares(maxDepositReceiver, Math.Rounding.Floor);
+        return Math.min(maxDepositInShares, super.maxMint(receiver));
     }
 
     /// @notice Returns the maximum amount that can be withdrawn by an owner
-    /// @dev Limited by both owner's balance and external vault's withdrawal capacity
-    function maxWithdraw(address owner) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
-        return Math.min(_convertToAssets(balanceOf(owner), Math.Rounding.Floor), vault.maxWithdraw(address(this)));
+    function maxWithdraw(address owner) public view override(BaseVault) returns (uint256) {
+        return Math.min(vault.maxWithdraw(address(this)), super.maxWithdraw(owner));
     }
 
     /// @notice Returns the maximum number of shares that can be redeemed
-    /// @dev Limited by both owner's balance and external vault's redemption capacity
-    function maxRedeem(address owner) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
-        return Math.min(balanceOf(owner), _convertToShares(vault.maxWithdraw(address(this)), Math.Rounding.Floor));
+    function maxRedeem(address owner) public view override(BaseVault) returns (uint256) {
+        uint256 maxWithdrawOwner = maxWithdraw(owner);
+        // slither-disable-next-line incorrect-equality
+        uint256 maxWithdrawInShares = maxWithdrawOwner == type(uint256).max
+            ? type(uint256).max
+            : _convertToShares(maxWithdrawOwner, Math.Rounding.Floor);
+        return Math.min(maxWithdrawInShares, super.maxRedeem(owner));
     }
 
     /// @notice Returns the total assets managed by this strategy
@@ -116,12 +110,8 @@ contract ERC4626StrategyVault is BaseVault {
         internal
         override
     {
-        uint256 balanceBefore = IERC20(asset()).balanceOf(address(this));
         // slither-disable-next-line unused-return
         vault.withdraw(assets, address(this), address(this));
-        uint256 balanceAfter = IERC20(asset()).balanceOf(address(this));
-        assets = balanceAfter - balanceBefore;
-
         super._withdraw(caller, receiver, owner, assets, shares);
     }
 }
