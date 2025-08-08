@@ -3,7 +3,7 @@
     "workers": 10,
     "workerResetLimit": 50,
     "timeout": 0,
-    "testLimit": 100000,
+    "testLimit": 10000000,
     "shrinkLimit": 5000,
     "callSequenceLength": 100,
     "corpusDirectory": "medusa-corpus",
@@ -14,7 +14,7 @@
     ],
     "revertReporterEnabled": false,
     "targetContracts": [
-      "AaveStrategyVaultCryticERC4626Harness"
+      "CryticTester"
     ],
     "predeployedContracts": {},
     "targetContractsBalances": [],
@@ -84,7 +84,7 @@
   "compilation": {
     "platform": "crytic-compile",
     "platformConfig": {
-      "target": "test/property/crytic/AaveStrategyVaultCryticERC4626Harness.t.sol",
+      "target": "test/recon/CryticTester.sol",
       "solcVersion": "",
       "exportDirectory": "",
       "args": []

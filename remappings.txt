@@ -10,3 +10,7 @@ openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/
 @aave/=lib/aave-v3-origin/src/
 console3=lib/console3/src
 @create2deployer/=lib/create2deployer/contracts/
+@recon/=lib/setup-helpers/src/
+@crytic/properties/=lib/crytic/properties/
+@chimera/=lib/chimera/src/
+@recon/=lib/setup-helpers/src/

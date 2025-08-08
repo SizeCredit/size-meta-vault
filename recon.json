@@ -1,0 +1,397 @@
+{
+  "out/AaveStrategyVault.sol/AaveStrategyVault.json": {
+    "functions": [
+      {
+        "signature": "approve(address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "deposit(uint256,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "initialize(address,address,string,string,address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "initialize(address,address,string,string,address,uint256,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "mint(uint256,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "multicall(bytes[])",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "pause()",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "redeem(uint256,address,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "setTotalAssetsCap(uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "transfer(address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "transferFrom(address,address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "unpause()",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "upgradeToAndCall(address,bytes)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "withdraw(uint256,address,address)",
+        "actor": "actor",
+        "mode": "normal"
+      }
+    ],
+    "separated": true
+  },
+  "out/CashStrategyVault.sol/CashStrategyVault.json": {
+    "functions": [
+      {
+        "signature": "approve(address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "deposit(uint256,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "initialize(address,address,string,string,address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "mint(uint256,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "multicall(bytes[])",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "pause()",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "redeem(uint256,address,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "setTotalAssetsCap(uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "transfer(address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "transferFrom(address,address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "unpause()",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "upgradeToAndCall(address,bytes)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "withdraw(uint256,address,address)",
+        "actor": "actor",
+        "mode": "normal"
+      }
+    ],
+    "separated": true
+  },
+  "out/ERC4626StrategyVault.sol/ERC4626StrategyVault.json": {
+    "functions": [
+      {
+        "signature": "approve(address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "deposit(uint256,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "initialize(address,string,string,address,uint256,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "initialize(address,address,string,string,address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "mint(uint256,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "multicall(bytes[])",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "pause()",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "redeem(uint256,address,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "setTotalAssetsCap(uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "transfer(address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "transferFrom(address,address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "unpause()",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "upgradeToAndCall(address,bytes)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "withdraw(uint256,address,address)",
+        "actor": "actor",
+        "mode": "normal"
+      }
+    ],
+    "separated": true
+  },
+  "out/SizeMetaVault.sol/SizeMetaVault.json": {
+    "functions": [
+      {
+        "signature": "addStrategy(address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "approve(address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "deposit(uint256,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "initialize(address,address,string,string,address,uint256,address[])",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "initialize(address,address,string,string,address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "mint(uint256,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "multicall(bytes[])",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "pause()",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "rebalance(address,address,uint256,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "redeem(uint256,address,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "removeStrategy(address,address,uint256,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "reorderStrategies(address[])",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "setFeeRecipient(address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "setPerformanceFeePercent(uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "setRebalanceMaxSlippagePercent(uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "setTotalAssetsCap(uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "transfer(address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "transferFrom(address,address,uint256)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "unpause()",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "upgradeToAndCall(address,bytes)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "withdraw(uint256,address,address)",
+        "actor": "actor",
+        "mode": "normal"
+      }
+    ],
+    "separated": true
+  },
+  "out/Auth.sol/Auth.json": {
+    "functions": [
+      {
+        "signature": "grantRole(bytes32,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "initialize(address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "multicall(bytes[])",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "pause()",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "renounceRole(bytes32,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "revokeRole(bytes32,address)",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "unpause()",
+        "actor": "actor",
+        "mode": "normal"
+      },
+      {
+        "signature": "upgradeToAndCall(address,bytes)",
+        "actor": "actor",
+        "mode": "normal"
+      }
+    ],
+    "separated": true
+  }
+}

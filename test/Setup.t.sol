@@ -113,7 +113,6 @@ abstract contract Setup {
         erc4626StrategyVault = erc4626StrategyVaultScript.deploy(auth, FIRST_DEPOSIT_AMOUNT, erc4626Vault);
 
         _mint(admin, address(cryticCashStrategyVaultScript), FIRST_DEPOSIT_AMOUNT);
-
         cryticCashStrategyVault = cryticCashStrategyVaultScript.deploy(auth, erc20Asset, FIRST_DEPOSIT_AMOUNT);
 
         _mint(admin, address(cryticAaveStrategyVaultScript), FIRST_DEPOSIT_AMOUNT);
